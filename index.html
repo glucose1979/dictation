@@ -45,7 +45,8 @@
   .actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
   .actions button { background:#fff; border:1px solid var(--navy); color:var(--navy); border-radius:10px; padding:10px 20px; font-size:16px; cursor:pointer; }
   .actions button.danger { border-color:var(--red); color:var(--red); }
-  .warn { background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
+  .warn a.btn, .warn button { display:inline-block; margin:8px 6px 0 0; padding:8px 14px; border-radius:8px; border:0; background:#8B1E2D; color:#fff; font-size:15px; text-decoration:none; cursor:pointer; }
+  .warn { line-height:1.6; background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:8px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; }
   .toast.show { opacity:1; }
 </style>
@@ -61,6 +62,7 @@
 </header>
 <main>
  <div class="content">
+  <div class="warn" id="inapp"></div>
   <div class="warn" id="warn">這個瀏覽器不支援即時語音辨識，請改用電腦或手機上的 Chrome、Edge，或 iPhone 的 Safari。</div>
   <section class="hero">
     <h1>說話，文字立即出現。</h1>
@@ -70,7 +72,7 @@
   </section>
   <section class="card">
     <div class="label">聽寫內容（可直接點進去修改）</div>
-    <div id="editor" contenteditable="true" data-ph="按下「開始即時聽寫」後開始說話，辨識好的文字會出現在這裡。"></div>
+    <div id="editor" contenteditable="true" data-ph="按下「開始即時聽寫」後開始說話，文字會接在游標位置；點文章中間可插入，按 Enter 換行。"></div>
     <div id="interim"></div>
   </section>
   <div class="actions">
@@ -120,9 +122,20 @@
     }
     return text;
   }
+  let savedRange=null;
+  document.addEventListener('selectionchange',()=>{ const sel=getSelection(); if(sel.rangeCount && editor.contains(sel.getRangeAt(0).startContainer)) savedRange=sel.getRangeAt(0).cloneRange(); });
   function addParagraph(text){
-    const p=document.createElement('p'); p.textContent=text; editor.appendChild(p);
-    p.scrollIntoView({block:'nearest'});
+    let r=savedRange;
+    if(!r || !editor.contains(r.startContainer)){ r=document.createRange(); r.selectNodeContents(editor); r.collapse(false); }
+    r.deleteContents();
+    // English: add a space if the previous character is not a space
+    if(lang!=='zh-TW'){ const pre=document.createRange(); pre.setStart(editor,0); pre.setEnd(r.startContainer,r.startOffset); const before=pre.toString(); if(before && !/\s$/.test(before)) text=' '+text; }
+    { const post=document.createRange(); post.setStart(r.endContainer,r.endOffset); post.setEnd(editor,editor.childNodes.length); const after=post.toString();
+      if(after && !/^\s*\n/.test(after)) text=text.replace(/[。？.?]$/,''); }
+    const node=document.createTextNode(text); r.insertNode(node);
+    const mark=document.createElement('span'); node.after(mark); mark.scrollIntoView({block:'nearest'}); mark.remove();
+    const nr=document.createRange(); nr.setStartAfter(node); nr.collapse(true); savedRange=nr.cloneRange();
+    if(document.activeElement===editor){ const sel=getSelection(); sel.removeAllRanges(); sel.addRange(nr); }
   }
 
   function build(){
@@ -138,7 +151,7 @@
       interimEl.textContent = interim;
     };
     r.onerror = e => {
-      if(e.error==='not-allowed' || e.error==='service-not-allowed'){ stop(); toast('請允許瀏覽器使用麥克風'); }
+      if(e.error==='not-allowed' || e.error==='service-not-allowed'){ stop(); showMicHelp(); }
     };
     r.onend = () => { interimEl.textContent=''; if(listening){ try{ r.start(); }catch(_){ } } };
     return r;
@@ -176,9 +189,30 @@
     const d=new Date(), pad=n=>String(n).padStart(2,'0');
     const name='聽寫_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+'.txt';
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+t],{type:'text/plain;charset=utf-8'})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
-  $('#clear').addEventListener('click',()=>{ if(!editor.textContent.trim()) return; if(confirm('確定要清除全部內容嗎？')){ editor.innerHTML=''; interimEl.textContent=''; toast('已清除'); } });
+  $('#clear').addEventListener('click',()=>{ if(!editor.textContent.trim()) return; if(confirm('確定要清除全部內容嗎？')){ editor.innerHTML=''; savedRange=null; interimEl.textContent=''; toast('已清除'); } });
 
   paintLang();
+
+  /* in-app browser / mic help */
+  const UA=navigator.userAgent||'';
+  const isLine=/Line\//i.test(UA), isFB=/FBAN|FBAV|FB_IAB|Instagram|MicroMessenger/i.test(UA);
+  const isAndroid=/Android/i.test(UA), isIOS=/iPhone|iPad|iPod/i.test(UA);
+  if(isLine && !/openExternalBrowser=1/.test(location.search)){
+    location.replace(location.origin+location.pathname+'?openExternalBrowser=1'); }
+  function inappHTML(lead){
+    const url=location.origin+location.pathname;
+    let h='<b>'+lead+'</b><br>';
+    h+= isIOS ? '請點右上角「⋯」或分享鍵，選「在 Safari 中開啟」。' : '請點右上角「⋮」或「⋯」，選「在瀏覽器中開啟」，或改用 Chrome 開啟。';
+    if(isAndroid) h+='<br><a class="btn" href="intent://'+url.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;end">用 Chrome 開啟</a>';
+    h+='<button type="button" id="copyurl">複製網址</button>';
+    return h; }
+  function bindCopy(){ const b=document.getElementById('copyurl'); if(b) b.onclick=async()=>{ try{ await navigator.clipboard.writeText(location.origin+location.pathname); toast('網址已複製，請貼到 Chrome 或 Safari'); }catch(_){ prompt('請複製這個網址',location.origin+location.pathname); } }; }
+  if(isLine||isFB){ const b=$('#inapp'); b.innerHTML=inappHTML('您正在 LINE／臉書等 App 裡開啟，這裡通常無法使用麥克風。'); b.style.display='block'; bindCopy(); }
+  function showMicHelp(){
+    const b=$('#inapp');
+    if(isLine||isFB){ b.innerHTML=inappHTML('這個 App 不允許網頁使用麥克風。'); }
+    else { b.innerHTML='<b>麥克風被封鎖了。</b><br>請點網址列左邊的 🔒 或「ⓘ」圖示 →「權限」→ 把「麥克風」改成「允許」，再重新整理頁面。'+(isIOS?'<br>iPhone：設定 → Safari → 麥克風 → 允許。':''); }
+    b.style.display='block'; bindCopy(); b.scrollIntoView({behavior:'smooth',block:'center'}); }
   if(!SR){ $('#warn').style.display='block'; toggle.disabled=true; toggle.style.opacity=.5; }
 })();
 </script>
