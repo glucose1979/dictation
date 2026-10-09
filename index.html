@@ -136,16 +136,34 @@
     const mark=document.createElement('span'); node.after(mark); mark.scrollIntoView({block:'nearest'}); mark.remove();
     const nr=document.createRange(); nr.setStartAfter(node); nr.collapse(true); savedRange=nr.cloneRange();
     if(document.activeElement===editor){ const sel=getSelection(); sel.removeAllRanges(); sel.addRange(nr); }
+    return node;
   }
 
+  let lastRaw='', lastAt=0, lastNode=null, lastText='';
+  const norm=x=>x.replace(/[\s，。？！、,.?!]/g,'');
   function build(){
     const r = new SR();
-    r.lang = lang; r.continuous = true; r.interimResults = true;
+    // Android Chrome repeats results in continuous mode: use one-utterance mode + auto restart
+    r.lang = lang; r.continuous = !isAndroid; r.interimResults = true;
+    const done=new Set();
+    r.onstart = () => done.clear();
     r.onresult = e => {
       let interim='';
       for(let i=e.resultIndex;i<e.results.length;i++){
         const res=e.results[i];
-        if(res.isFinal){ const t=punctuate(res[0].transcript); if(t) addParagraph(t); }
+        if(res.isFinal){
+          if(done.has(i)) continue; done.add(i);
+          let raw=res[0].transcript.trim(); const n=norm(raw);
+          if(!n) continue;
+          const recent=Date.now()-lastAt<8000;
+          if(recent && n===lastRaw) continue;
+          if(recent && lastRaw && n.startsWith(lastRaw)){
+            if(lastNode && lastNode.isConnected && lastNode.textContent===lastText){ // replace the earlier piece with the longer one
+              const sp=lastText.startsWith(' ')?' ':''; lastNode.textContent=sp+punctuate(raw); lastText=lastNode.textContent; lastRaw=n; lastAt=Date.now(); continue; }
+            let k=0, m=0; while(k<raw.length && m<lastRaw.length){ if(norm(raw[k])) m++; k++; }
+            raw=raw.slice(k).trim(); }
+          lastRaw=n; lastAt=Date.now();
+          const t=punctuate(raw); if(t){ lastNode=addParagraph(t); lastText=lastNode?lastNode.textContent:''; } }
         else interim += res[0].transcript;
       }
       interimEl.textContent = interim;
