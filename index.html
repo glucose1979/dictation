@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>老司機 即刻聽寫</title>
+<style>
+  :root { --navy:#1F3A5F; --red:#8B1E2D; --bg:#f6f7f9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; background:var(--bg); color:#1d2530; }
+  header { background:var(--navy); color:#fff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  .brand { font-size:34px; font-weight:700; letter-spacing:1px; }
+  .badge { white-space:nowrap; display:inline-block; vertical-align:middle; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); border-radius:999px; padding:3px 12px; font-size:14px; margin-left:10px; }
+  .lang { display:flex; border:1px solid rgba(255,255,255,.6); border-radius:999px; overflow:hidden; }
+  .lang button { background:transparent; color:#fff; border:0; padding:7px 16px; font-size:15px; cursor:pointer; }
+  .lang button.on { background:#fff; color:var(--navy); font-weight:700; }
+  main { max-width:1200px; margin:0 auto; padding:28px 18px 40px; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; align-items:start; }
+  .content { min-width:0; }
+  @media (max-width:600px) { .brand { font-size:28px; } .badge { font-size:12px; margin-left:6px; } }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } .promo { position:static !important; } .social { flex-direction:row !important; } }
+  .hero { text-align:center; margin:10px 0 24px; }
+  .hero h1 { font-size:30px; color:var(--navy); margin:0 0 8px; }
+  .desc { font-size:16px; color:#556; margin:0 0 20px; }
+  .promo { display:block; margin:0; position:sticky; top:20px; text-decoration:none; background:var(--navy); color:#fff; border-radius:14px; padding:18px 22px; text-align:center; box-shadow:0 4px 14px rgba(31,58,95,.25); }
+  .promo .t1 { font-size:14px; opacity:.85; }
+  .promo .t2 { font-size:20px; font-weight:700; margin:4px 0; }
+  .promo .t3 { display:inline-block; margin-top:10px; background:var(--red); color:#fff; text-decoration:none; padding:9px 22px; border-radius:999px; font-size:16px; }
+  .social { display:flex; flex-direction:column; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:16px; }
+  .social a { color:#fff; text-decoration:none; padding:8px 16px; border-radius:10px; font-size:15px; border:1px solid rgba(255,255,255,.35); }
+  .social .fb { background:#1877F2; } .social .yt { background:#FF0000; } .social .tk { background:#111; }
+  .promo a:hover { filter:brightness(1.12); }
+  .hdr-link { color:#fff; font-size:14px; text-decoration:underline; margin-right:14px; }
+  .right { display:flex; align-items:center; }
+  #toggle { background:var(--red); color:#fff; border:0; border-radius:999px; padding:14px 34px; font-size:18px; cursor:pointer; box-shadow:0 4px 14px rgba(139,30,45,.3); }
+  #toggle.live { background:#444; }
+  #status { margin-top:12px; font-size:14px; color:#667; min-height:20px; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#d33; margin-right:6px; animation:blink 1s infinite; vertical-align:middle; }
+  @keyframes blink { 50% { opacity:.2; } }
+  .card { background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); padding:18px 20px; }
+  .label { font-size:13px; color:#889; margin-bottom:8px; }
+  #editor { min-height:300px; outline:none; font-size:19px; line-height:1.8; white-space:pre-wrap; word-break:break-word; }
+  #editor p { margin:0 0 10px; }
+  #editor:empty:before { content:attr(data-ph); color:#aab; }
+  #interim { color:#8a94a6; font-size:19px; line-height:1.8; min-height:30px; border-top:1px dashed #e3e6ea; margin-top:10px; padding-top:8px; }
+  .actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
+  .actions button { background:#fff; border:1px solid var(--navy); color:var(--navy); border-radius:10px; padding:10px 20px; font-size:16px; cursor:pointer; }
+  .actions button.danger { border-color:var(--red); color:var(--red); }
+  .warn { background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:8px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<header>
+  <div><span class="brand">老司機 即刻聽寫</span><span class="badge">中文＋English</span></div>
+  <div class="right"><a class="hdr-link" href="https://shinhung.com.tw" target="_blank" rel="noopener">泌尿外科 侯鎮邦醫師</a>
+  <div class="lang" role="group" aria-label="語言">
+    <button data-lang="zh-TW">中文</button>
+    <button data-lang="en-US">English</button>
+  </div></div>
+</header>
+<main>
+ <div class="content">
+  <div class="warn" id="warn">這個瀏覽器不支援即時語音辨識，請改用電腦或手機上的 Chrome、Edge，或 iPhone 的 Safari。</div>
+  <section class="hero">
+    <h1>說話，文字立即出現。</h1>
+    <p class="desc">按下按鈕開始說話，文字即時出現，可修改、複製或下載。</p>
+    <button id="toggle">開始即時聽寫</button>
+    <div id="status"></div>
+  </section>
+  <section class="card">
+    <div class="label">聽寫內容（可直接點進去修改）</div>
+    <div id="editor" contenteditable="true" data-ph="按下「開始即時聽寫」後開始說話，辨識好的文字會出現在這裡。"></div>
+    <div id="interim"></div>
+  </section>
+  <div class="actions">
+    <button id="copy">複製全文</button>
+    <button id="download">下載 .txt</button>
+    <button id="clear" class="danger">清除內容</button>
+  </div>
+  </div>
+  <aside class="promo">
+    <div class="t1">本工具由以下醫師免費提供</div>
+    <div class="t2">泌尿外科 侯鎮邦醫師</div>
+    <div class="t1">攝護腺微創治療・機器手臂手術</div>
+    <a class="t3" href="https://shinhung.com.tw" target="_blank" rel="noopener">前往侯鎮邦醫師官方網站 →</a>
+    <div class="social">
+      <a class="fb" href="https://www.facebook.com/NewUroTech/" target="_blank" rel="noopener">侯醫師 Facebook 粉絲專頁</a>
+      <a class="yt" href="https://www.youtube.com/@Dr_Hou_NewUroTech" target="_blank" rel="noopener">侯醫師 YouTube 頻道</a>
+      <a class="tk" href="https://www.tiktok.com/@chen_pang_hou" target="_blank" rel="noopener">侯醫師 抖音 TikTok</a>
+    </div>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const $ = s => document.querySelector(s);
+  const editor=$('#editor'), interimEl=$('#interim'), toggle=$('#toggle'), statusEl=$('#status');
+  let lang = localStorage.getItem('lsj-lang') || 'zh-TW';
+  let rec=null, listening=false;
+
+  function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1600); }
+  function paintLang(){ document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on', b.dataset.lang===lang)); }
+  function setStatus(){ statusEl.innerHTML = listening ? '<span class="dot"></span>聆聽中（'+(lang==='zh-TW'?'中文':'English')+'）' : ''; }
+
+  function punctuate(text){
+    text = text.trim();
+    if(!text) return '';
+    if(lang==='zh-TW'){
+      text = text.replace(/\s+/g,'');
+      if(!/[。！？…，、；：」』）.!?]$/.test(text)){
+        text += /(嗎|呢|吧|麼|是不是|有沒有|對不對)$/.test(text) ? '？' : '。';
+      }
+    } else {
+      text = text.charAt(0).toUpperCase()+text.slice(1);
+      if(!/[.!?…,;:]$/.test(text)){
+        text += /^(what|why|how|when|where|who|which|is|are|do|does|did|can|could|will|would|should|may)\b/i.test(text) ? '?' : '.';
+      }
+    }
+    return text;
+  }
+  function addParagraph(text){
+    const p=document.createElement('p'); p.textContent=text; editor.appendChild(p);
+    p.scrollIntoView({block:'nearest'});
+  }
+
+  function build(){
+    const r = new SR();
+    r.lang = lang; r.continuous = true; r.interimResults = true;
+    r.onresult = e => {
+      let interim='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const res=e.results[i];
+        if(res.isFinal){ const t=punctuate(res[0].transcript); if(t) addParagraph(t); }
+        else interim += res[0].transcript;
+      }
+      interimEl.textContent = interim;
+    };
+    r.onerror = e => {
+      if(e.error==='not-allowed' || e.error==='service-not-allowed'){ stop(); toast('請允許瀏覽器使用麥克風'); }
+    };
+    r.onend = () => { interimEl.textContent=''; if(listening){ try{ r.start(); }catch(_){ } } };
+    return r;
+  }
+  function start(){
+    if(!SR) return;
+    rec = build(); listening=true;
+    try{ rec.start(); }catch(_){}
+    toggle.textContent='停止聽寫'; toggle.classList.add('live'); setStatus();
+  }
+  function stop(){
+    listening=false;
+    if(rec){ rec.onend=null; try{ rec.stop(); }catch(_){} rec=null; }
+    interimEl.textContent='';
+    toggle.textContent='開始即時聽寫'; toggle.classList.remove('live'); setStatus();
+  }
+  function switchLang(l){
+    if(l===lang) return;
+    lang=l; localStorage.setItem('lsj-lang', lang); paintLang();
+    if(listening){
+      const old=rec; listening=false;
+      if(old){ old.onend=null; try{ old.stop(); }catch(_){} }
+      setTimeout(start, 250);
+      toast('已切換為'+(lang==='zh-TW'?'中文':'English')+'，下一段用新語言辨識');
+    } else setStatus();
+  }
+
+  document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>switchLang(b.dataset.lang)));
+  toggle.addEventListener('click',()=> listening?stop():start());
+  function fullText(){ return editor.innerText.replace(/\n{3,}/g,'\n\n').trim(); }
+  $('#copy').addEventListener('click',async()=>{ const t=fullText(); if(!t) return toast('目前沒有內容');
+    try{ await navigator.clipboard.writeText(t); }catch(_){ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    toast('已複製全文'); });
+  $('#download').addEventListener('click',()=>{ const t=fullText(); if(!t) return toast('目前沒有內容');
+    const d=new Date(), pad=n=>String(n).padStart(2,'0');
+    const name='聽寫_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+'.txt';
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+t],{type:'text/plain;charset=utf-8'})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); });
+  $('#clear').addEventListener('click',()=>{ if(!editor.textContent.trim()) return; if(confirm('確定要清除全部內容嗎？')){ editor.innerHTML=''; interimEl.textContent=''; toast('已清除'); } });
+
+  paintLang();
+  if(!SR){ $('#warn').style.display='block'; toggle.disabled=true; toggle.style.opacity=.5; }
+})();
+</script>
+</body>
+</html>
