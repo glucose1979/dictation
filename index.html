@@ -16,7 +16,7 @@
   .lang button.on { background:#fff; color:var(--navy); font-weight:700; }
   main { max-width:1200px; margin:0 auto; padding:28px 18px 40px; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; align-items:start; }
   .content { min-width:0; }
-  @media (max-width:600px) { .brand { font-size:28px; } .badge { font-size:12px; margin-left:6px; } }
+  @media (max-width:600px) { #editor { min-height:130px !important; } #interim { min-height:20px !important; } .card { padding-top:12px !important; padding-bottom:12px !important; } .brand { font-size:28px; } .badge { font-size:12px; margin-left:6px; } }
   @media (max-width:900px) { main { grid-template-columns:1fr; } .promo { position:static !important; } .social { flex-direction:row !important; } }
   .hero { text-align:center; margin:10px 0 24px; }
   .hero h1 { font-size:30px; color:var(--navy); margin:0 0 8px; }
@@ -45,6 +45,8 @@
   .actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
   .actions button { background:#fff; border:1px solid var(--navy); color:var(--navy); border-radius:10px; padding:10px 20px; font-size:16px; cursor:pointer; }
   .actions button.danger { border-color:var(--red); color:var(--red); }
+  .actions button.ai { background:linear-gradient(135deg,#1F3A5F,#8B1E2D); color:#fff; border:0; }
+  .actions button.ai:disabled { opacity:.6; }
   .warn a.btn, .warn button { display:inline-block; margin:8px 6px 0 0; padding:8px 14px; border-radius:8px; border:0; background:#8B1E2D; color:#fff; font-size:15px; text-decoration:none; cursor:pointer; }
   .warn { line-height:1.6; background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:8px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; }
@@ -76,6 +78,8 @@
     <div id="interim"></div>
   </section>
   <div class="actions">
+    <button id="aifix" class="ai" style="display:none">✨ AI 校正</button>
+    <button id="aiundo" style="display:none">↶ 復原</button>
     <button id="copy">複製全文</button>
     <button id="download">下載 .txt</button>
     <button id="clear" class="danger">清除內容</button>
@@ -231,6 +235,26 @@
     if(isLine||isFB){ b.innerHTML=inappHTML('這個 App 不允許網頁使用麥克風。'); }
     else { b.innerHTML='<b>麥克風被封鎖了。</b><br>請點網址列左邊的 🔒 或「ⓘ」圖示 →「權限」→ 把「麥克風」改成「允許」，再重新整理頁面。'+(isIOS?'<br>iPhone：設定 → Safari → 麥克風 → 允許。':''); }
     b.style.display='block'; bindCopy(); b.scrollIntoView({behavior:'smooth',block:'center'}); }
+
+  /* private AI proofreading (owner only) */
+  const AI_URL='https://papaya-line-boat.onrender.com/fix';
+  const aiBtn=$('#aifix'), undoBtn=$('#aiundo'); let undoHTML=null;
+  localStorage.removeItem('lsj-ai-pw'); aiBtn.style.display='';
+  aiBtn.addEventListener('click',async()=>{
+    const t=fullText(); if(!t) return toast('目前沒有內容');
+    const pw=prompt('請輸入 AI 校正密碼'); if(!pw) return;
+    aiBtn.disabled=true; aiBtn.textContent='校正中…（第一次約需 30 秒）';
+    try{
+      const res=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t,lang,password:pw})});
+      if(res.status===401||res.status===403){ throw new Error(res.status===401?'密碼錯誤':'AI 校正尚未啟用'); }
+      if(!res.ok) throw new Error('校正失敗（'+res.status+'）');
+      const j=await res.json(); if(!j.text) throw new Error('沒有收到結果');
+      undoHTML=editor.innerHTML; editor.innerText=j.text; savedRange=null; lastNode=null;
+      undoBtn.style.display=''; toast('已完成 AI 校正');
+    }catch(e){ toast(e.message||'校正失敗，請稍後再試'); }
+    finally{ aiBtn.disabled=false; aiBtn.textContent='✨ AI 校正'; }
+  });
+  undoBtn.addEventListener('click',()=>{ if(undoHTML!==null){ editor.innerHTML=undoHTML; undoHTML=null; savedRange=null; lastNode=null; undoBtn.style.display='none'; toast('已復原'); } });
   if(!SR){ $('#warn').style.display='block'; toggle.disabled=true; toggle.style.opacity=.5; }
 })();
 </script>
