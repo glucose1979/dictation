@@ -11,9 +11,10 @@
   header { background:var(--navy); color:#fff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
   .brand { font-size:34px; font-weight:700; letter-spacing:1px; }
   .badge { white-space:nowrap; display:inline-block; vertical-align:middle; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); border-radius:999px; padding:3px 12px; font-size:14px; margin-left:10px; }
-  .lang { display:flex; border:1px solid rgba(255,255,255,.6); border-radius:999px; overflow:hidden; }
-  .lang button { background:transparent; color:#fff; border:0; padding:7px 16px; font-size:15px; cursor:pointer; }
-  .lang button.on { background:#fff; color:var(--navy); font-weight:700; }
+  .ctrl { display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; }
+  .lang { display:flex; border:2px solid var(--navy); border-radius:999px; overflow:hidden; background:#fff; }
+  .lang button { background:transparent; color:var(--navy); border:0; padding:12px 20px; font-size:17px; cursor:pointer; }
+  .lang button.on { background:var(--navy); color:#fff; font-weight:700; }
   main { max-width:1200px; margin:0 auto; padding:28px 18px 40px; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; align-items:start; }
   .content { min-width:0; }
   @media (max-width:600px) { #editor { min-height:130px !important; } #interim { min-height:20px !important; } .card { padding-top:12px !important; padding-bottom:12px !important; } .brand { font-size:28px; } .badge { font-size:12px; margin-left:6px; } }
@@ -58,10 +59,7 @@
 <header>
   <div><span class="brand">老司機 即刻聽寫</span><span class="badge">中文＋English</span></div>
   <div class="right"><a class="hdr-link" href="https://shinhung.com.tw" target="_blank" rel="noopener">泌尿外科 侯鎮邦醫師</a>
-  <div class="lang" role="group" aria-label="語言">
-    <button data-lang="zh-TW">中文</button>
-    <button data-lang="en-US">English</button>
-  </div></div>
+  </div>
 </header>
 <main>
  <div class="content">
@@ -70,7 +68,13 @@
   <section class="hero">
     <h1>說話，文字立即出現。</h1>
     <p class="desc">按下按鈕開始說話，文字即時出現，可修改、複製或下載。</p>
-    <button id="toggle">開始即時聽寫</button>
+    <div class="ctrl">
+      <button id="toggle">開始即時聽寫</button>
+      <div class="lang" role="group" aria-label="語言">
+        <button data-lang="zh-TW">中文</button>
+        <button data-lang="en-US">English</button>
+      </div>
+    </div>
     <div id="status"></div>
   </section>
   <section class="card">
