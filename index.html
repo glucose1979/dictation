@@ -45,7 +45,8 @@
   .actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:20px; }
   .actions button { background:#fff; border:1px solid var(--navy); color:var(--navy); border-radius:10px; padding:10px 20px; font-size:16px; cursor:pointer; }
   .actions button.danger { border-color:var(--red); color:var(--red); }
-  .actions button.ai { background:linear-gradient(135deg,#1F3A5F,#8B1E2D); color:#fff; border:0; }
+  .actions button.primary { background:#8B1E2D; border-color:#8B1E2D; color:#fff; font-weight:600; }
+  .actions button.ai { background:#fff; border:1px solid #c5ccd4; color:#6b7a85; }
   .actions button.ai:disabled { opacity:.6; }
   .warn a.btn, .warn button { display:inline-block; margin:8px 6px 0 0; padding:8px 14px; border-radius:8px; border:0; background:#8B1E2D; color:#fff; font-size:15px; text-decoration:none; cursor:pointer; }
   .warn { line-height:1.6; background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
@@ -78,11 +79,11 @@
     <div id="interim"></div>
   </section>
   <div class="actions">
-    <button id="aifix" class="ai" style="display:none">✨ AI 校正</button>
-    <button id="aiundo" style="display:none">↶ 復原</button>
-    <button id="copy">複製全文</button>
+    <button id="copy" class="primary">複製全文</button>
     <button id="download">下載 .txt</button>
     <button id="clear" class="danger">清除內容</button>
+    <button id="aiundo" style="display:none">↶ 復原</button>
+    <button id="aifix" class="ai" style="display:none">AI 校正</button>
   </div>
   </div>
   <aside class="promo">
@@ -252,7 +253,7 @@
       undoHTML=editor.innerHTML; editor.innerText=j.text; savedRange=null; lastNode=null;
       undoBtn.style.display=''; toast('已完成 AI 校正');
     }catch(e){ toast(e.message||'校正失敗，請稍後再試'); }
-    finally{ aiBtn.disabled=false; aiBtn.textContent='✨ AI 校正'; }
+    finally{ aiBtn.disabled=false; aiBtn.textContent='AI 校正'; }
   });
   undoBtn.addEventListener('click',()=>{ if(undoHTML!==null){ editor.innerHTML=undoHTML; undoHTML=null; savedRange=null; lastNode=null; undoBtn.style.display='none'; toast('已復原'); } });
   if(!SR){ $('#warn').style.display='block'; toggle.disabled=true; toggle.style.opacity=.5; }
