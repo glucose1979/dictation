@@ -32,8 +32,10 @@
   .promo a:hover { filter:brightness(1.12); }
   .hdr-link { color:#fff; font-size:14px; text-decoration:underline; margin-right:14px; }
   .right { display:flex; align-items:center; }
-  #toggle { background:var(--red); color:#fff; border:0; border-radius:999px; padding:14px 34px; font-size:18px; cursor:pointer; box-shadow:0 4px 14px rgba(139,30,45,.3); }
+  #toggle { background:var(--red); color:#fff; border:0; border-radius:999px; padding:20px 52px; font-size:24px; font-weight:700; font-family:inherit; line-height:1.25; cursor:pointer; box-shadow:0 6px 18px rgba(139,30,45,.35); }
   #toggle.live { background:#444; }
+  .beside { display:flex; align-items:center; gap:8px; }
+  @media (max-width:600px) { #toggle { width:100%; padding:20px 16px; font-size:24px; } }
   #status { margin-top:12px; font-size:14px; color:#667; min-height:20px; }
   .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#d33; margin-right:6px; animation:blink 1s infinite; vertical-align:middle; }
   @keyframes blink { 50% { opacity:.2; } }
@@ -49,6 +51,12 @@
   .actions button.primary { background:#8B1E2D; border-color:#8B1E2D; color:#fff; font-weight:600; }
   .actions button.ai { background:#fff; border:1px solid #c5ccd4; color:#6b7a85; }
   .actions button.ai:disabled { opacity:.6; }
+  #uploadBtn { background:#fff; color:#6b7a85; border:1px solid #c5ccd4; border-radius:8px; padding:3px 10px; font-size:13px; font-weight:400; font-family:inherit; line-height:1.4; cursor:pointer; -webkit-appearance:none; appearance:none; }
+  #uploadBtn:disabled { opacity:.55; cursor:default; }
+  #uploadBtn:focus-visible { outline:2px solid #c5ccd4; outline-offset:2px; }
+  #uploadStatus { width:100%; max-width:36em; text-align:center; font-size:18px; line-height:1.55; font-weight:700; color:var(--navy); white-space:pre-line; overflow-wrap:anywhere; }
+  #uploadStatus:empty { display:none; }
+  #uploadStatus.err { color:var(--red); }
   .warn a.btn, .warn button { display:inline-block; margin:8px 6px 0 0; padding:8px 14px; border-radius:8px; border:0; background:#8B1E2D; color:#fff; font-size:15px; text-decoration:none; cursor:pointer; }
   .warn { line-height:1.6; background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:8px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; }
@@ -70,12 +78,17 @@
     <p class="desc">按下按鈕開始說話，文字即時出現，可修改、複製或下載。</p>
     <div class="ctrl">
       <button id="toggle">開始即時聽寫</button>
-      <div class="lang" role="group" aria-label="語言">
-        <button data-lang="zh-TW">中文</button>
-        <button data-lang="en-US">English</button>
+      <div class="beside">
+        <div class="lang" role="group" aria-label="語言">
+          <button data-lang="zh-TW">中文</button>
+          <button data-lang="en-US">English</button>
+        </div>
+        <button type="button" id="uploadBtn">upload files</button>
       </div>
     </div>
     <div id="status"></div>
+    <div id="uploadStatus" role="status" aria-live="polite"></div>
+    <input id="uploadFile" type="file" accept="audio/*,.mp3,.m4a,.mp4,.wav,.webm,.ogg,.oga,.opus,.flac,.mpeg,.mpga,video/mp4,video/webm" hidden aria-hidden="true" tabindex="-1">
   </section>
   <section class="card">
     <div class="label">聽寫內容（可直接點進去修改）</div>
@@ -241,13 +254,16 @@
     else { b.innerHTML='<b>麥克風被封鎖了。</b><br>請點網址列左邊的 🔒 或「ⓘ」圖示 →「權限」→ 把「麥克風」改成「允許」，再重新整理頁面。'+(isIOS?'<br>iPhone：設定 → Safari → 麥克風 → 允許。':''); }
     b.style.display='block'; bindCopy(); b.scrollIntoView({behavior:'smooth',block:'center'}); }
 
-  /* private AI proofreading (owner only) */
+  /* private AI proofreading + audio upload share one password.
+     Asked each time with prompt(); not stored (drop any old copy). */
   const AI_URL='https://papaya-line-boat.onrender.com/fix';
+  const TRANSCRIBE_URL=AI_URL.replace(/\/fix$/,'/transcribe');
+  function askPassword(){ return prompt('請輸入 AI 校正密碼'); }
   const aiBtn=$('#aifix'), undoBtn=$('#aiundo'); let undoHTML=null;
   localStorage.removeItem('lsj-ai-pw'); aiBtn.style.display='';
   aiBtn.addEventListener('click',async()=>{
     const t=fullText(); if(!t) return toast('目前沒有內容');
-    const pw=prompt('請輸入 AI 校正密碼'); if(!pw) return;
+    const pw=askPassword(); if(!pw) return;
     aiBtn.disabled=true; aiBtn.textContent='校正中…（第一次約需 30 秒）';
     try{
       const res=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t,lang,password:pw})});
@@ -260,6 +276,95 @@
     finally{ aiBtn.disabled=false; aiBtn.textContent='AI 校正'; }
   });
   undoBtn.addEventListener('click',()=>{ if(undoHTML!==null){ editor.innerHTML=undoHTML; undoHTML=null; savedRange=null; lastNode=null; undoBtn.style.display='none'; toast('已復原'); } });
+
+  /* upload a recording; same password value /fix sends, as a form field */
+  const uploadBtn=$('#uploadBtn'), uploadStatus=$('#uploadStatus'), uploadInput=$('#uploadFile');
+  const MAX_AUDIO=100*1024*1024;
+  const AUDIO_EXT={flac:1,mp3:1,mp4:1,mpeg:1,mpga:1,m4a:1,ogg:1,oga:1,opus:1,wav:1,webm:1};
+  const COLD_MSG='伺服器可能正在醒來（免費方案第一次會比較慢）。請稍等約半分鐘後再試一次。';
+  const NET_MSG='網路連不上，請檢查連線後再試一次。';
+  const TRANSCRIBE_MSG='轉文字中，請稍候（長錄音可能要一兩分鐘）';
+  let uploadBusy=false;
+  function setUploadStatus(msg,isErr){
+    uploadStatus.textContent=msg||'';
+    uploadStatus.classList.toggle('err',!!isErr);
+  }
+  function audioExt(name){ const m=/\.([A-Za-z0-9]+)$/.exec(name||''); return m?m[1].toLowerCase():''; }
+  function audioAllowed(file){
+    const ext=audioExt(file.name);
+    if(ext) return !!AUDIO_EXT[ext];
+    const mime=(file.type||'').split(';')[0].trim().toLowerCase();
+    return mime.indexOf('audio/')===0||mime==='video/mp4'||mime==='video/webm'||mime==='video/ogg'||mime==='application/ogg';
+  }
+  function uploadName(file){
+    if(AUDIO_EXT[audioExt(file.name)]) return file.name;
+    const mime=(file.type||'').split(';')[0].trim().toLowerCase();
+    const byMime={'audio/mpeg':'mp3','audio/mp3':'mp3','audio/mp4':'m4a','audio/m4a':'m4a','audio/x-m4a':'m4a','audio/wav':'wav','audio/x-wav':'wav','audio/wave':'wav','audio/webm':'webm','video/webm':'webm','audio/ogg':'ogg','application/ogg':'ogg','video/ogg':'ogg','audio/flac':'flac','audio/x-flac':'flac','video/mp4':'mp4','audio/mpga':'mpga'};
+    return (file.name||'audio')+(byMime[mime]?'.'+byMime[mime]:'.webm');
+  }
+  function transcribeLang(){ return lang==='zh-TW'?'zh':'en'; }
+  uploadBtn.addEventListener('click',()=>{ if(!uploadBusy) uploadInput.click(); });
+  uploadInput.addEventListener('change',()=>{
+    const file=uploadInput.files&&uploadInput.files[0];
+    uploadInput.value='';
+    if(!file||uploadBusy) return;
+    if(!file.size){ setUploadStatus('這個錄音檔是空的，請換一個檔案。',true); return; }
+    if(file.size>MAX_AUDIO){ setUploadStatus('檔案太大，請壓到 100 MB 以內再上傳（最長約 60 分鐘）。',true); return; }
+    if(!audioAllowed(file)){ setUploadStatus('不支援這個格式，請改用 mp3、m4a、wav、webm、ogg 或 flac。',true); return; }
+    const pw=askPassword(); if(!pw) return;
+    sendAudio(file,pw);
+  });
+  function sendAudio(file,pw){
+    uploadBusy=true; uploadBtn.disabled=true; uploadBtn.textContent='請稍候…'; uploadBtn.setAttribute('aria-busy','true');
+    setUploadStatus('上傳中…',false);
+    const started=Date.now(); let settled=false, phase='upload';
+    const slowTimer=setTimeout(()=>{
+      if(!settled&&phase==='transcribe') setUploadStatus(TRANSCRIBE_MSG+'\n第一次使用若比較久，是伺服器正在醒來，請再等一下。',false);
+    },20000);
+    function finish(){
+      if(settled) return; settled=true; clearTimeout(slowTimer);
+      uploadBusy=false; uploadBtn.disabled=false; uploadBtn.textContent='upload files'; uploadBtn.removeAttribute('aria-busy');
+    }
+    function showTranscribe(){ if(settled) return; phase='transcribe'; setUploadStatus(TRANSCRIBE_MSG,false); }
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',TRANSCRIBE_URL);
+    xhr.timeout=150000;
+    xhr.upload.onprogress=e=>{
+      if(settled||!e.lengthComputable||!(e.total>0)) return;
+      if(e.loaded>=e.total) showTranscribe();
+      else setUploadStatus('上傳中…（'+Math.max(1,Math.round(e.loaded/e.total*100))+'%）',false);
+    };
+    xhr.upload.onload=showTranscribe;
+    function failNet(){
+      if(settled) return;
+      const slow=Date.now()-started>12000;
+      finish(); setUploadStatus(slow?COLD_MSG:NET_MSG,true); toast(slow?'請稍後再試':'網路連不上');
+    }
+    xhr.onerror=xhr.onabort=failNet;
+    xhr.ontimeout=()=>{ if(settled) return; finish(); setUploadStatus(COLD_MSG,true); toast('請稍後再試'); };
+    xhr.onload=()=>{ if(settled) return; const elapsed=Date.now()-started; finish(); handleTranscribe(xhr.status,xhr.responseText,elapsed); };
+    const fd=new FormData();
+    fd.append('file',file,uploadName(file));
+    fd.append('lang',transcribeLang());
+    fd.append('password',pw);
+    xhr.send(fd);
+  }
+  function handleTranscribe(status,raw,elapsed){
+    let j=null; try{ j=JSON.parse(raw); }catch(_){}
+    if(status===401||status===403){
+      const msg=status===401?'密碼錯誤':'AI 校正尚未啟用';
+      setUploadStatus(status===401?'密碼錯誤，請再按一次按鈕重新輸入。':msg,true);
+      toast(msg); return;
+    }
+    const serverMsg=j&&typeof j.error==='string'&&j.error&&j.error!=='unauthorized'&&j.error!=='disabled'?j.error:'';
+    if(serverMsg){ setUploadStatus(serverMsg,true); toast(serverMsg.length<=18?serverMsg:'轉文字沒有完成'); return; }
+    if(status===200&&j&&j.ok===true&&typeof j.text==='string'&&j.text.trim()){
+      addParagraph(j.text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim());
+      setUploadStatus('已轉成文字，可以再按「AI 校正」。',false); toast('已轉成文字'); return;
+    }
+    if(status===502||status===504||elapsed>20000){ setUploadStatus(COLD_MSG,true); toast('請稍後再試'); return; }
+    setUploadStatus('伺服器沒有完成轉文字，請稍後再試一次。',true); toast('轉文字失敗');
+  }
   if(!SR){ $('#warn').style.display='block'; toggle.disabled=true; toggle.style.opacity=.5; }
 })();
 </script>
