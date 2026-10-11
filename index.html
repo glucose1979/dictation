@@ -17,7 +17,7 @@
   .lang button.on { background:var(--navy); color:#fff; font-weight:700; }
   main { max-width:1200px; margin:0 auto; padding:28px 18px 40px; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; align-items:start; }
   .content { min-width:0; }
-  @media (max-width:600px) { #editor { min-height:130px !important; } #interim { min-height:20px !important; } .card { padding-top:12px !important; padding-bottom:12px !important; } .brand { font-size:28px; } .badge { font-size:12px; margin-left:6px; } #uploadBtn { width:100%; padding:16px 18px; } .upload-note, #uploadStatus { font-size:17px; } }
+  @media (max-width:600px) { #editor { min-height:130px !important; } #interim { min-height:20px !important; } .card { padding-top:12px !important; padding-bottom:12px !important; } .brand { font-size:28px; } .badge { font-size:12px; margin-left:6px; } }
   @media (max-width:900px) { main { grid-template-columns:1fr; } .promo { position:static !important; } .social { flex-direction:row !important; } }
   .hero { text-align:center; margin:10px 0 24px; }
   .hero h1 { font-size:30px; color:var(--navy); margin:0 0 8px; }
@@ -57,6 +57,7 @@
   #uploadStatus { width:100%; max-width:36em; text-align:center; font-size:18px; line-height:1.55; font-weight:700; color:var(--navy); white-space:pre-line; overflow-wrap:anywhere; }
   #uploadStatus:empty { display:none; }
   #uploadStatus.err { color:var(--red); }
+  @media (max-width:600px) { #uploadBtn { width:100%; padding:16px 18px; } .upload-note { font-size:17px; } }
   .warn a.btn, .warn button { display:inline-block; margin:8px 6px 0 0; padding:8px 14px; border-radius:8px; border:0; background:#8B1E2D; color:#fff; font-size:15px; text-decoration:none; cursor:pointer; }
   .warn { line-height:1.6; background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:8px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; }
@@ -336,9 +337,14 @@
       else setUploadStatus('上傳中…（'+Math.max(1,Math.round(e.loaded/e.total*100))+'%）',false);
     };
     xhr.upload.onload=showTranscribe;
-    xhr.onerror=()=>{ const slow=Date.now()-started>12000; finish(); setUploadStatus(slow?COLD_MSG:NET_MSG,true); toast(slow?'請稍後再試':'網路連不上'); };
-    xhr.ontimeout=()=>{ finish(); setUploadStatus(COLD_MSG,true); toast('請稍後再試'); };
-    xhr.onload=()=>{ const elapsed=Date.now()-started; finish(); handleTranscribe(xhr.status,xhr.responseText,elapsed); };
+    function failNet(){
+      if(settled) return;
+      const slow=Date.now()-started>12000;
+      finish(); setUploadStatus(slow?COLD_MSG:NET_MSG,true); toast(slow?'請稍後再試':'網路連不上');
+    }
+    xhr.onerror=xhr.onabort=failNet;
+    xhr.ontimeout=()=>{ if(settled) return; finish(); setUploadStatus(COLD_MSG,true); toast('請稍後再試'); };
+    xhr.onload=()=>{ if(settled) return; const elapsed=Date.now()-started; finish(); handleTranscribe(xhr.status,xhr.responseText,elapsed); };
     const fd=new FormData();
     fd.append('file',file,uploadName(file));
     fd.append('lang',transcribeLang());
