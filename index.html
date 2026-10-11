@@ -32,8 +32,10 @@
   .promo a:hover { filter:brightness(1.12); }
   .hdr-link { color:#fff; font-size:14px; text-decoration:underline; margin-right:14px; }
   .right { display:flex; align-items:center; }
-  #toggle { background:var(--red); color:#fff; border:0; border-radius:999px; padding:14px 34px; font-size:18px; cursor:pointer; box-shadow:0 4px 14px rgba(139,30,45,.3); }
+  #toggle { background:var(--red); color:#fff; border:0; border-radius:999px; padding:20px 52px; font-size:24px; font-weight:700; font-family:inherit; line-height:1.25; cursor:pointer; box-shadow:0 6px 18px rgba(139,30,45,.35); }
   #toggle.live { background:#444; }
+  .beside { display:flex; align-items:center; gap:8px; }
+  @media (max-width:600px) { #toggle { width:100%; padding:20px 16px; font-size:24px; } }
   #status { margin-top:12px; font-size:14px; color:#667; min-height:20px; }
   .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:#d33; margin-right:6px; animation:blink 1s infinite; vertical-align:middle; }
   @keyframes blink { 50% { opacity:.2; } }
@@ -49,15 +51,12 @@
   .actions button.primary { background:#8B1E2D; border-color:#8B1E2D; color:#fff; font-weight:600; }
   .actions button.ai { background:#fff; border:1px solid #c5ccd4; color:#6b7a85; }
   .actions button.ai:disabled { opacity:.6; }
-  .upload-block { margin-top:16px; display:flex; flex-direction:column; align-items:center; gap:8px; width:100%; }
-  #uploadBtn { background:var(--navy); color:#fff; border:0; border-radius:999px; padding:14px 28px; font-size:18px; font-weight:700; font-family:inherit; line-height:1.35; cursor:pointer; min-height:52px; box-shadow:0 4px 14px rgba(31,58,95,.25); -webkit-appearance:none; appearance:none; }
-  #uploadBtn:disabled { opacity:.6; cursor:default; }
-  #uploadBtn:focus-visible { outline:3px solid var(--navy); outline-offset:3px; }
-  .upload-note { margin:0; max-width:34em; font-size:16px; line-height:1.6; color:#3e4a59; }
+  #uploadBtn { background:#fff; color:#6b7a85; border:1px solid #c5ccd4; border-radius:8px; padding:3px 10px; font-size:13px; font-weight:400; font-family:inherit; line-height:1.4; cursor:pointer; -webkit-appearance:none; appearance:none; }
+  #uploadBtn:disabled { opacity:.55; cursor:default; }
+  #uploadBtn:focus-visible { outline:2px solid #c5ccd4; outline-offset:2px; }
   #uploadStatus { width:100%; max-width:36em; text-align:center; font-size:18px; line-height:1.55; font-weight:700; color:var(--navy); white-space:pre-line; overflow-wrap:anywhere; }
   #uploadStatus:empty { display:none; }
   #uploadStatus.err { color:var(--red); }
-  @media (max-width:600px) { #uploadBtn { width:100%; padding:16px 18px; } .upload-note { font-size:17px; } }
   .warn a.btn, .warn button { display:inline-block; margin:8px 6px 0 0; padding:8px 14px; border-radius:8px; border:0; background:#8B1E2D; color:#fff; font-size:15px; text-decoration:none; cursor:pointer; }
   .warn { line-height:1.6; background:#fff4e5; border:1px solid #f0c27a; color:#7a4b00; padding:10px 14px; border-radius:10px; margin-bottom:16px; display:none; }
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:8px 18px; border-radius:999px; font-size:14px; opacity:0; transition:opacity .3s; }
@@ -76,25 +75,24 @@
   <div class="warn" id="warn">這個瀏覽器不支援即時語音辨識，請改用電腦或手機上的 Chrome、Edge，或 iPhone 的 Safari。</div>
   <section class="hero">
     <h1>說話，文字立即出現。</h1>
-    <p class="desc">按下按鈕開始說話，文字即時出現，可修改、複製或下載。也可以上傳錄音檔轉成文字。</p>
+    <p class="desc">按下按鈕開始說話，文字即時出現，可修改、複製或下載。</p>
     <div class="ctrl">
       <button id="toggle">開始即時聽寫</button>
-      <div class="lang" role="group" aria-label="語言">
-        <button data-lang="zh-TW">中文</button>
-        <button data-lang="en-US">English</button>
+      <div class="beside">
+        <div class="lang" role="group" aria-label="語言">
+          <button data-lang="zh-TW">中文</button>
+          <button data-lang="en-US">English</button>
+        </div>
+        <button type="button" id="uploadBtn">upload files</button>
       </div>
     </div>
     <div id="status"></div>
-    <div class="upload-block">
-      <button type="button" id="uploadBtn" aria-describedby="uploadNote">上傳錄音檔轉文字</button>
-      <p class="upload-note" id="uploadNote">此功能需要朋友密碼，和「AI 校正」相同。</p>
-      <div id="uploadStatus" role="status" aria-live="polite"></div>
-      <input id="uploadFile" type="file" accept="audio/*,.mp3,.m4a,.mp4,.wav,.webm,.ogg,.oga,.opus,.flac,.mpeg,.mpga,video/mp4,video/webm" hidden aria-hidden="true" tabindex="-1">
-    </div>
+    <div id="uploadStatus" role="status" aria-live="polite"></div>
+    <input id="uploadFile" type="file" accept="audio/*,.mp3,.m4a,.mp4,.wav,.webm,.ogg,.oga,.opus,.flac,.mpeg,.mpga,video/mp4,video/webm" hidden aria-hidden="true" tabindex="-1">
   </section>
   <section class="card">
     <div class="label">聽寫內容（可直接點進去修改）</div>
-    <div id="editor" contenteditable="true" data-ph="按下「開始即時聽寫」開始說話，或按「上傳錄音檔轉文字」。文字會接在游標位置；點文章中間可插入，按 Enter 換行。"></div>
+    <div id="editor" contenteditable="true" data-ph="按下「開始即時聽寫」後開始說話，文字會接在游標位置；點文章中間可插入，按 Enter 換行。"></div>
     <div id="interim"></div>
   </section>
   <div class="actions">
@@ -325,7 +323,7 @@
     },20000);
     function finish(){
       if(settled) return; settled=true; clearTimeout(slowTimer);
-      uploadBusy=false; uploadBtn.disabled=false; uploadBtn.textContent='上傳錄音檔轉文字'; uploadBtn.removeAttribute('aria-busy');
+      uploadBusy=false; uploadBtn.disabled=false; uploadBtn.textContent='upload files'; uploadBtn.removeAttribute('aria-busy');
     }
     function showTranscribe(){ if(settled) return; phase='transcribe'; setUploadStatus(TRANSCRIBE_MSG,false); }
     const xhr=new XMLHttpRequest();
